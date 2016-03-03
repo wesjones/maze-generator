@@ -1,0 +1,27 @@
+{
+  "name": "maze-generator",
+  "version": "0.0.1",
+  "description": "Generate mazes",
+  "main": "MazeGenerator.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wesjones/maze-generator.git"
+  },
+  "keywords": [
+    "maze",
+    "generator"
+  ],
+  "author": "wesjones",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/wesjones/maze-generator/issues"
+  },
+  "homepage": "https://github.com/wesjones/maze-generator#readme",
+  "devDependencies": {
+    "grunt": "^0.4.5",
+    "hbjs": "^0.16.19"
+  }
+}
