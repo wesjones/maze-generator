@@ -1,5 +1,5 @@
 {
-    "name": "mazegen",
+    "name": "maze-generator",
     "main": "build/mazegen.js",
     "repository": {
         "type": "git",
