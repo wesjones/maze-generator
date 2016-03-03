@@ -1,0 +1,25 @@
+{
+    "name": "mazegen",
+    "main": "build/mazegen.js",
+    "repository": {
+        "type": "git",
+        "url": "git://github.com/wesjones/maze-generator"
+    },
+    "homepage": "https://github.com/wesjones/maze-generator",
+    "authors": [
+        "Wes Jones <cybus10@gmail.com> (http://github.com/wesjones/)"
+    ],
+    "description": "Maze Generator",
+    "keywords": [
+        "maze",
+        "generator"
+    ],
+    "license": "MIT",
+    "ignore": [
+        "**/.*",
+        "node_modules",
+        "bower_components",
+        "logs",
+        "src"
+    ]
+}
