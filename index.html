@@ -11,8 +11,9 @@
 
         var size = 10;
         var percent = 0.10;
-        var refresh = 5;
-        var maze = mazegen.create(size, size, percent, refresh, 5);
+        var refresh = 0;
+        var breakWalls = 5; // 1 in 5 times of creating. break a walls. The lower the number, the easier the maze.
+        var maze = mazegen.create(size, size, percent, refresh, breakWalls);
         maze.on('complete', function() {
             console.log(maze.getBoardAsString());
         });

@@ -1,5 +1,5 @@
 /*!
-* maze-generator v.0.0.1
+* maze-generator v.0.0.3
 * (c) 2016, Obogo
 * License: MIT.
 */
@@ -133,7 +133,7 @@
             }
             function later(time) {
                 stop();
-                intv = setTimeout(next, time || wait || 500);
+                intv = time ? setTimeout(next, time || wait) : next();
             }
             function next(force) {
                 if (available.length || force) {
@@ -161,7 +161,7 @@
                     allAvailablePoints.push(dest);
                     self.fire("render", board, getPercent(), cur.inBetween.clone(), dest.clone());
                     if (available.length < rows * cols * startPercent) {
-                        later(10);
+                        later(wait);
                     } else {
                         if (!ready) {
                             ready = true;
@@ -170,7 +170,9 @@
                         later(0);
                     }
                 } else {
-                    self.dispatch("complete");
+                    setTimeout(function() {
+                        self.dispatch("complete");
+                    });
                 }
             }
             function breakAWall() {

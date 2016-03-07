@@ -74,7 +74,7 @@ define('mazeGenerator', ['dispatcher'], function (dispatcher) {
 
         function later(time) {
             stop();
-            intv = setTimeout(next, time || wait || 500);
+            intv = time ? setTimeout(next, time || wait) : next();
         }
 
         function next(force) {
@@ -106,7 +106,7 @@ define('mazeGenerator', ['dispatcher'], function (dispatcher) {
                 allAvailablePoints.push(dest);
                 self.fire('render', board, getPercent(), cur.inBetween.clone(), dest.clone());
                 if (available.length < (rows * cols * startPercent)) {
-                    later(10);
+                    later(wait);
                 } else {
                     if (!ready) {
                         ready = true;
@@ -115,7 +115,10 @@ define('mazeGenerator', ['dispatcher'], function (dispatcher) {
                     later(0);
                 }
             } else {
-                self.dispatch('complete');
+                // just in case we were synchronous. We wouldn't have had time to add the listener.
+                setTimeout(function() {
+                    self.dispatch('complete');
+                });
             }
         }
 
@@ -234,12 +237,25 @@ define('mazeGenerator', ['dispatcher'], function (dispatcher) {
         return self;
     }
 
+    /**
+     * Expose what types are available as walls. Simple is 0 is a wall and everything else is not.
+     * Or START/1 is the start position of the maze, PATH/2 is a regular path, and ACTIVE/3 is where it is currently building.
+     * @type {{WALL: number, START: number, PATH: number, ACTIVE: number}}
+     */
     exports.types = {
         WALL: WALL,
         START: START,
         PATH: PATH,
         ACTIVE: ACTIVE
     };
+    /**
+     * @param {Number} rows
+     * @param {Number} cols
+     * @param {Number} startPercent - tells when to dispatch the ready event. So it can keep growing.
+     * @param {Number} wait - milliseconds to wait between each change
+     * @param {Number} breakAt - Number at which to break walls. If it is 5. Then 1 in five times of creating walls it will break one. The lower the number the easier the maze, the higher the more difficult.
+     * @returns {MazeGenerator}
+     */
     exports.create = function (rows, cols, startPercent, wait, breakAt) {
         return new MazeGenerator(rows, cols, startPercent, wait, breakAt);
     };
