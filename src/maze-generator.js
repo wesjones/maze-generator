@@ -114,7 +114,8 @@ define('mazeGenerator', ['dispatcher'], function (dispatcher) {
                     }
                     later(0);
                 }
-
+            } else {
+                self.dispatch('complete');
             }
         }
 
@@ -207,6 +208,14 @@ define('mazeGenerator', ['dispatcher'], function (dispatcher) {
             return allAvailablePoints;
         }
 
+        function getBoardAsString() {
+            var str = '';
+            for(var r = 0; r < board.length; r += 1) {
+                str += board[r].join(" ") + "\n";
+            }
+            return str;
+        }
+
         self.getBoard = getBoard;
         self.getPercent = getPercent;
         self.getValue = getValue;
@@ -216,6 +225,7 @@ define('mazeGenerator', ['dispatcher'], function (dispatcher) {
         self.stop = stop;
         self.reset = reset;
         self.getAllAvailablePoints = getAllAvailablePoints;
+        self.getBoardAsString = getBoardAsString;
 
         dispatcher(self);
 

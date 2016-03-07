@@ -13,7 +13,9 @@
         var percent = 0.10;
         var refresh = 5;
         var maze = mazegen.create(size, size, percent, refresh, 5);
-        console.log(maze.getBoard());
+        maze.on('complete', function() {
+            console.log(maze.getBoardAsString());
+        });
     </script>
 </head>
 <body>
