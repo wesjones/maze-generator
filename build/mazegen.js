@@ -1,5 +1,5 @@
 /*!
-* maze-generator v.0.0.3
+* maze-generator v.0.1.0
 * (c) 2016, Obogo
 * License: MIT.
 */
@@ -67,379 +67,215 @@
         return define;
     })();
     //! ################# YOUR CODE STARTS HERE #################### //
-    //! src/maze-generator.js
-    define("mazeGenerator", [ "dispatcher" ], function(dispatcher) {
-        var WALL = 0;
-        var START = 1;
-        var PATH = 2;
-        var ACTIVE = 3;
-        function MazeGenerator(rows, cols, startPercent, wait, BREAK_AT) {
-            var self = this;
-            startPercent = startPercent || .1;
-            var board = [];
-            var available = [];
-            var offset = 2;
-            var intv;
-            var start;
-            var current;
-            var count = 0;
-            var max;
-            var ready = false;
-            var allAvailablePoints = [];
-            function Point(x, y) {
-                this.x = x;
-                this.y = y;
-            }
-            Point.prototype.clone = function() {
-                return new Point(this.x, this.y);
+    //! src/mazegen.js
+    define("mazegen", function() {
+        function MazeGen() {
+            var types = {
+                WALL: 0,
+                PATH: 1,
+                PREFERRED: 2,
+                START: 3,
+                END: 4
             };
-            function init() {
-                start = new Point(Math.floor(rows * .5), Math.floor(cols * .5));
-                reset(rows, cols, startPercent, wait, start.x, start.y);
+            function rand(max, offset) {
+                return Math.floor(Math.random() * max + (offset || 0));
             }
-            function reset(r, c, p, w, x, y) {
-                allAvailablePoints.length = 0;
-                rows = r;
-                cols = c;
-                startPercent = p;
-                wait = w;
-                max = rows * cols / 4;
-                ready = false;
-                available.length = 0;
-                buildCells();
-                start.x = x;
-                start.y = y;
-                current = start.clone();
-                setCell(current.y, current.x, START);
-                available = getAvailablePoints(current.y, current.x);
-                next();
-            }
-            function getAvailablePoints(y, x) {
-                var walls = getCellWalls(y, x), len = walls.length, avail = [];
-                for (var i = 0; i < len; i += 2) {
-                    var source = walls[i];
-                    var dest = walls[i + 1];
-                    var item = {
-                        source: source,
-                        dest: dest,
-                        inBetween: new Point(source.x - (source.x - dest.x) * .5, source.y - (source.y - dest.y) * .5)
-                    };
-                    avail.push(item);
+            function each(fn, board) {
+                board = board || this;
+                for (var r = 0; r < board.rows; r += 1) {
+                    for (var c = 0; c < board.cols; c += 1) {
+                        fn.call(board, r, c, board);
+                    }
                 }
-                return avail;
+                return board;
             }
-            function stop() {
-                clearTimeout(intv);
-            }
-            function later(time) {
-                stop();
-                intv = time ? setTimeout(next, time || wait) : next();
-            }
-            function next(force) {
-                if (available.length || force) {
-                    var cur = available.splice(Math.floor(Math.random() * available.length), 1)[0];
-                    cur.type = PATH;
-                    available = available.concat(getAvailablePoints(current.y, current.x));
-                    var dest = cur.dest;
-                    if (!dest || board[dest.y][dest.x] === PATH || board[dest.y][dest.x] === START) {
-                        next();
-                        return;
-                    }
-                    if (current.y === start.y && current.x === start.x) {
-                        setCell(current.y, current.x, START);
-                    } else if (board[current.y][current.x] === ACTIVE) {
-                        setCell(current.y, current.x, PATH);
-                    }
-                    setCell(cur.inBetween.y, cur.inBetween.x, PATH);
-                    setCell(dest.y, dest.x, ACTIVE);
-                    if (Math.floor(Math.random() * BREAK_AT) === 0) {
-                        breakAWall();
-                    }
-                    count += 1;
-                    current = dest;
-                    allAvailablePoints.push(cur.inBetween);
-                    allAvailablePoints.push(dest);
-                    self.fire("render", board, getPercent(), cur.inBetween.clone(), dest.clone());
-                    if (available.length < rows * cols * startPercent) {
-                        later(wait);
-                    } else {
-                        if (!ready) {
-                            ready = true;
-                            self.fire("ready", start.clone());
-                        }
-                        later(0);
-                    }
-                } else {
-                    setTimeout(function() {
-                        self.dispatch("complete");
+            function createCell(row, col, board) {
+                var available = row % 2 === 0 && col % 2 === 0 ? 1 : 0;
+                board[row] = board[row] || [];
+                board[row][col] = available;
+                if (available) {
+                    board.available.push({
+                        y: row,
+                        x: col
                     });
                 }
             }
-            function breakAWall() {
-                var walls = getCellWalls(current.y, current.x, 1);
-                var wall = walls[Math.floor(Math.random() * walls.length)];
-                if (wall && wall.y && wall.x && wall.y < rows - 1 && wall.x < cols - 1) {
-                    setCell(wall.y, wall.x, PATH);
-                }
-            }
-            function getCellWalls(row, col, off) {
-                var walls = [];
-                off = off || offset;
-                if (!inMaze(row, col - off)) {
-                    walls.push(new Point(col, row));
-                    walls.push(new Point(col - off, row));
-                }
-                if (!inMaze(row - offset, col)) {
-                    walls.push(new Point(col, row));
-                    walls.push(new Point(col, row - off));
-                }
-                if (!inMaze(row, col + offset)) {
-                    walls.push(new Point(col, row));
-                    walls.push(new Point(col + off, row));
-                }
-                if (!inMaze(row + offset, col)) {
-                    walls.push(new Point(col, row));
-                    walls.push(new Point(col, row + off));
-                }
-                return walls;
-            }
-            function buildCells() {
-                for (var y = 0; y < rows; y += 1) {
-                    board[y] = [];
-                    for (var x = 0; x < cols; x += 1) {
-                        board[y][x] = WALL;
+            function getClosestAvailableSpot(board, pt) {
+                var dist = board.available.length, d, a, spot;
+                for (var i = 0; i < board.available.length; i += 1) {
+                    a = board.available[i];
+                    d = getDistance(a.x, a.y, pt.x, pt.y);
+                    if (d < dist) {
+                        dist = d;
+                        spot = a;
                     }
                 }
+                return spot;
             }
-            function isOutOfBounds(y, x) {
-                return y < 0 || x < 0 || y >= rows || x >= cols;
-            }
-            function inMaze(y, x) {
-                if (isOutOfBounds(y, x)) {
-                    return true;
+            function getEdgePoint(board, avoidSide) {
+                var edgePoints = [], pt;
+                var maxY = board.rows - 1;
+                var maxX = board.cols - 1;
+                var range = Math.max(maxY, maxX) * .5;
+                for (var i = 0; i < board.available.length; i += 1) {
+                    pt = board.available[i];
+                    if (pt.x === 0 || pt.y === 0 || pt.x === maxX || pt.y === maxY) {
+                        if (avoidSide && getDistance(pt.x, pt.y, avoidSide.x, avoidSide.y) > range) {
+                            edgePoints.push(pt);
+                        } else if (!avoidSide) {
+                            edgePoints.push(pt);
+                        }
+                    }
                 }
-                return board[y][x] === PATH || board[y][x] === START;
+                i = rand(edgePoints.length);
+                return edgePoints[i];
             }
-            function setCell(y, x, value) {
-                if (!isOutOfBounds(y, x)) {
-                    board[y][x] = value;
-                }
-            }
-            function getBoard() {
+            function generate(options) {
+                var o = options || {};
+                var board = [];
+                board.rows = o.rows || 10;
+                board.cols = o.cols || 10;
+                board.points = o.points || 1;
+                board.pointRange = o.pointRange || .1;
+                board.available = [];
+                each(createCell, board);
+                board.start = getClosestAvailableSpot(board, o && o.start || getEdgePoint(board));
+                board.end = getClosestAvailableSpot(board, o && o.end || getEdgePoint(board, board.start));
+                generatePath(board);
+                board.each = each.bind(board);
+                board.asString = function() {
+                    return this.join("\n").split(",").join("");
+                };
                 return board;
             }
-            function getPercent() {
-                return count / max;
+            function hasWall(board, y, x) {
+                return board[y] && board[y][x] !== undefined ? true : false;
             }
-            function getValue(x, y) {
-                return board[y] && board[y][x];
-            }
-            function getValuesAroundPoint(x, y, value) {
-                var values = [];
-                if (getValue(x, y - 1) === value) {
-                    values.push(new Point(x, y - 1));
+            function getSides(board, active) {
+                var a = active;
+                var sides = [];
+                if (hasWall(board, a.y - 1, a.x)) {
+                    sides.push({
+                        y: a.y - 1,
+                        x: a.x,
+                        ty: a.y - 2,
+                        tx: a.x
+                    });
                 }
-                if (getValue(x, y + 1) === value) {
-                    values.push(new Point(x, y + 1));
+                if (hasWall(board, a.y + 1, a.x)) {
+                    sides.push({
+                        y: a.y + 1,
+                        x: a.x,
+                        ty: a.y + 2,
+                        tx: a.x
+                    });
                 }
-                if (getValue(x - 1, y) === value) {
-                    values.push(new Point(x - 1, y));
+                if (hasWall(board, a.y, a.x - 1)) {
+                    sides.push({
+                        y: a.y,
+                        x: a.x - 1,
+                        ty: a.y,
+                        tx: a.x - 2
+                    });
                 }
-                if (getValue(x + 1, y) === value) {
-                    values.push(new Point(x + 1, y));
+                if (hasWall(board, a.y, a.x + 1)) {
+                    sides.push({
+                        y: a.y,
+                        x: a.x + 1,
+                        ty: a.y,
+                        tx: a.x + 2
+                    });
                 }
-                return values;
+                return sides;
             }
-            function getAllAvailablePoints() {
-                return allAvailablePoints;
+            function getDistance(x1, y1, x2, y2) {
+                return Math.sqrt((x2 -= x1) * x2 + (y2 -= y1) * y2);
             }
-            function getBoardAsString() {
-                var str = "";
-                for (var r = 0; r < board.length; r += 1) {
-                    str += board[r].join(" ") + "\n";
+            function setWall(board, pt, value) {
+                board[pt.y][pt.x] = value;
+            }
+            function breakWall(board, point) {
+                var sides = getSides(board, point);
+                var wallsToBreak = rand(1.3, 1);
+                for (var i = 0; i < wallsToBreak; i += 1) {
+                    var index = rand(sides.length);
+                    setWall(board, sides[index], types.PATH);
+                    sides.splice(index, 1);
                 }
-                return str;
             }
-            self.getBoard = getBoard;
-            self.getPercent = getPercent;
-            self.getValue = getValue;
-            self.setCell = setCell;
-            self.getAvailablePoints = getAvailablePoints;
-            self.getValuesAroundPoint = getValuesAroundPoint;
-            self.stop = stop;
-            self.reset = reset;
-            self.getAllAvailablePoints = getAllAvailablePoints;
-            self.getBoardAsString = getBoardAsString;
-            dispatcher(self);
-            init();
-            return self;
-        }
-        exports.types = {
-            WALL: WALL,
-            START: START,
-            PATH: PATH,
-            ACTIVE: ACTIVE
-        };
-        exports.create = function(rows, cols, startPercent, wait, breakAt) {
-            return new MazeGenerator(rows, cols, startPercent, wait, breakAt);
-        };
-    });
-    //! node_modules/hbjs/src/utils/async/dispatcher.js
-    define("dispatcher", [ "apply", "isFunction" ], function(apply, isFunction) {
-        function Event(type) {
-            this.type = type;
-            this.defaultPrevented = false;
-            this.propagationStopped = false;
-            this.immediatePropagationStopped = false;
-        }
-        Event.prototype.preventDefault = function() {
-            this.defaultPrevented = true;
-        };
-        Event.prototype.stopPropagation = function() {
-            this.propagationStopped = true;
-        };
-        Event.prototype.stopImmediatePropagation = function() {
-            this.immediatePropagationStopped = true;
-        };
-        Event.prototype.toString = function() {
-            return this.type;
-        };
-        function validateEvent(e) {
-            if (!e) {
-                throw Error("event cannot be undefined");
+            function generatePath(board) {
+                var len = board.available.length;
+                var targetLen = board.points;
+                var points = [ board.start ];
+                while (points.length < targetLen) {
+                    var p = board.available[rand(len)];
+                    var last = points[points.length - 1];
+                    var d = getDistance(p.x, p.y, last.x, last.y);
+                    if (d > board.rows * .25) {
+                        points.push(p);
+                    }
+                }
+                points.push(board.end);
+                console.log("path points", points.length);
+                setWall(board, board.start, types.START);
+                setWall(board, board.end, types.END);
+                makePath(board, points, types.PREFERRED);
+                while (board.available.length) {
+                    var index = rand(board.available.length);
+                    breakWall(board, board.available[index]);
+                    board.available.splice(index, 1);
+                }
             }
-        }
-        var dispatcher = function(target, scope, map) {
-            if (target && target.on && target.on.dispatcher) {
-                return target;
+            function removeAvailablePoint(board, pt) {
+                var p;
+                for (var i = 0; i < board.available.length; i += 1) {
+                    p = board.available[i];
+                    if (p.y === pt.y && p.x === pt.x) {
+                        board.available.splice(i, 1);
+                        return;
+                    }
+                }
             }
-            target = target || {};
-            var listeners = {};
-            function off(event, callback) {
-                validateEvent(event);
-                var index, list;
-                list = listeners[event];
-                if (list) {
-                    if (callback) {
-                        index = list.indexOf(callback);
-                        if (index !== -1) {
-                            list.splice(index, 1);
+            function sortByDist(a, b) {
+                return a.dist - b.dist;
+            }
+            function makePath(board, points, value) {
+                var current = points.shift();
+                removeAvailablePoint(board, current);
+                var next = points.shift();
+                current.dist = getDistance(current.x, current.y, next.x, next.y);
+                while (next) {
+                    if (current.y !== next.y || current.x !== next.x) {
+                        var sides = getSides(board, current);
+                        var preferred = [];
+                        var side;
+                        for (var i = 0; i < sides.length; i += 1) {
+                            sides[i].dist = getDistance(sides[i].tx, sides[i].ty, next.x, next.y);
+                            if (sides[i].dist <= current.dist && board[sides[i].y][sides[i].x] !== types.PREFERRED) {
+                                preferred.push(sides[i]);
+                            }
                         }
+                        sides.sort(sortByDist);
+                        side = preferred.length ? preferred[rand(preferred.length)] : sides.shift();
+                        if (board[current.y][current.x] === types.PATH) {
+                            setWall(board, current, value || types.PATH);
+                        }
+                        setWall(board, side, value || types.PATH);
+                        current = {
+                            y: side.ty,
+                            x: side.tx,
+                            dist: side.dist
+                        };
+                        removeAvailablePoint(board, current);
                     } else {
-                        list.length = 0;
+                        next = points.shift();
                     }
                 }
             }
-            function on(event, callback) {
-                if (isFunction(callback)) {
-                    validateEvent(event);
-                    listeners[event] = listeners[event] || [];
-                    listeners[event].push(callback);
-                    return function() {
-                        off(event, callback);
-                    };
-                }
-            }
-            on.dispatcher = true;
-            function once(event, callback) {
-                if (isFunction(callback)) {
-                    validateEvent(event);
-                    function fn() {
-                        off(event, fn);
-                        apply(callback, scope || target, arguments);
-                    }
-                    return on(event, fn);
-                }
-            }
-            function getListeners(event, strict) {
-                validateEvent(event);
-                var list, a = "*";
-                if (event || strict) {
-                    list = [];
-                    if (listeners[a]) {
-                        list = listeners[a].concat(list);
-                    }
-                    if (listeners[event]) {
-                        list = listeners[event].concat(list);
-                    }
-                    return list;
-                }
-                return listeners;
-            }
-            function removeAllListeners() {
-                listeners = {};
-            }
-            function fire(callback, args) {
-                return callback && apply(callback, target, args);
-            }
-            function dispatch(event) {
-                validateEvent(event);
-                var list = getListeners(event, true), len = list.length, i, event = typeof event === "object" ? event : new Event(event);
-                if (len) {
-                    arguments[0] = event;
-                    for (i = 0; i < len; i += 1) {
-                        if (!event.immediatePropagationStopped) {
-                            fire(list[i], arguments);
-                        }
-                    }
-                }
-                return event;
-            }
-            if (scope && map) {
-                target.on = scope[map.on] && scope[map.on].bind(scope);
-                target.off = scope[map.off] && scope[map.off].bind(scope);
-                target.once = scope[map.once] && scope[map.once].bind(scope);
-                target.dispatch = target.fire = scope[map.dispatch].bind(scope);
-            } else {
-                target.on = on;
-                target.off = off;
-                target.once = once;
-                target.dispatch = target.fire = dispatch;
-            }
-            target.getListeners = getListeners;
-            target.removeAllListeners = removeAllListeners;
-            return target;
-        };
-        return dispatcher;
-    });
-    //! node_modules/hbjs/src/utils/data/apply.js
-    define("apply", [ "isFunction" ], function(isFunction) {
-        return function(func, scope, args) {
-            if (!isFunction(func)) {
-                return;
-            }
-            args = args || [];
-            switch (args.length) {
-              case 0:
-                return func.call(scope);
-
-              case 1:
-                return func.call(scope, args[0]);
-
-              case 2:
-                return func.call(scope, args[0], args[1]);
-
-              case 3:
-                return func.call(scope, args[0], args[1], args[2]);
-
-              case 4:
-                return func.call(scope, args[0], args[1], args[2], args[3]);
-
-              case 5:
-                return func.call(scope, args[0], args[1], args[2], args[3], args[4]);
-
-              case 6:
-                return func.call(scope, args[0], args[1], args[2], args[3], args[4], args[5]);
-            }
-            return func.apply(scope, args);
-        };
-    });
-    //! node_modules/hbjs/src/utils/validators/isFunction.js
-    define("isFunction", function() {
-        var isFunction = function(val) {
-            return typeof val === "function";
-        };
-        return isFunction;
+            exports.generate = generate;
+            exports.types = types;
+        }
+        return new MazeGen();
     });
     //! #################  YOUR CODE ENDS HERE  #################### //
     finalize();

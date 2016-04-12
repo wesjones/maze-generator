@@ -15,7 +15,7 @@ module.exports = function (grunt) {
                 build: 'build',
                 filename: 'mazegen',
                 scripts: {
-                    import: ['mazeGenerator'],
+                    import: ['mazegen'],
                     src: ['src/**/*.js'],
                     report: 'verbose'
                 }

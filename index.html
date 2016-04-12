@@ -3,23 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <title>Maze-Generator</title>
+    <style type="text/css">
+        canvas {
+            border: 1px solid #000;
+        }
+
+        .output, .example {
+            font-family: "Courier New";
+        }
+    </style>
     <script src="build/mazegen.js"></script>
-    <!--<script src="dispatcher.js"></script>-->
-    <!--<script src="MazeItem.js"></script>-->
-    <!--<script src="MazeGenerator.js"></script>-->
     <script>
 
-        var size = 10;
-        var percent = 0.10;
-        var refresh = 0;
-        var breakWalls = 5; // 1 in 5 times of creating. break a walls. The lower the number, the easier the maze.
-        var maze = mazegen.create(size, size, percent, refresh, breakWalls);
-        maze.on('complete', function() {
-            console.log(maze.getBoardAsString());
-        });
+
+        function gen() {
+            var board = mazegen.generate({
+                rows: document.getElementById('rows').value,
+                cols: document.getElementById('cols').value,
+                points: document.getElementById('points').value
+            });
+            var mz = document.querySelector(".maze");
+            var cw = 4;
+            var ch = 4;
+            var w = board.cols * cw;
+            var h = board.rows * ch;
+            var ctx = mz.getContext("2d");
+            ctx.clearRect(0, 0, w, h);
+            mz.width = w;
+            mz.height = h;
+            mz.style.width = w + 'px';
+            mz.style.height = h + 'px';
+
+            function getColor(type) {
+                switch (type) {
+                    case mazegen.types.WALL:
+                        return '#00F';
+                    case mazegen.types.PATH:
+                        return '#FF0';
+                    case mazegen.types.PREFERRED:
+                        return '#FD0';
+                    case mazegen.types.START:
+                        return '#F90';
+                    case mazegen.types.END:
+                        return '#F60';
+                }
+            }
+
+            board.each(function (r, c) {
+                var value = this[r][c];
+                ctx.fillStyle = getColor(value);
+                ctx.fillRect(c * ch, r * cw, cw, ch);
+            });
+
+            var output = document.querySelector(".output");
+            output.cols = board.cols;
+            output.style.width = board.cols * 10 + 'px';
+            output.style.height = 500 + 'px';
+            output.value = board.asString();
+            document.querySelector(".example").value = "var board = mazegen.generate({\n\
+    rows: " + board.rows + ",\n\
+    cols: " + board.cols + ",\n\
+    points: " + board.points + "\n\
+});\n\
+console.log(board.asString());\n";
+        }
     </script>
 </head>
 <body>
-
+<div>
+    <span>
+        <label for="rows">Rows:</label>
+        <input type="number" id="rows" value="21">
+    </span>
+    <span>
+        <label for="cols">Columns:</label>
+        <input type="number" id="cols" value="41">
+    </span>
+    <span>
+        <label for="points">Curve Points:</label>
+        <input type="number" id="points" value="3">
+    </span>
+    <a href="javascript:gen()">Generate</a>
+</div>
+<canvas class="maze"></canvas>
+<textarea class="example" rows="10" cols="40"></textarea>
+<textarea class="output"></textarea>
 </body>
 </html>
