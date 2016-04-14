@@ -15,7 +15,7 @@ module.exports = function (grunt) {
                 build: 'build',
                 filename: 'mazegen',
                 scripts: {
-                    import: ['mazegen'],
+                    import: ['mazegen', 'findPath'],
                     src: ['src/**/*.js'],
                     report: 'verbose'
                 }

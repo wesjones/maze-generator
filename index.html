@@ -22,6 +22,7 @@
                 cols: document.getElementById('cols').value,
                 points: document.getElementById('points').value
             });
+
             var mz = document.querySelector(".maze");
             var cw = 4;
             var ch = 4;
@@ -49,11 +50,13 @@
                 }
             }
 
-            board.each(function (r, c) {
-                var value = this[r][c];
-                ctx.fillStyle = getColor(value);
-                ctx.fillRect(c * ch, r * cw, cw, ch);
-            });
+            function clearBoard() {
+                board.each(function (r, c) {
+                    var value = this[r][c];
+                    ctx.fillStyle = getColor(value);
+                    ctx.fillRect(c * ch, r * cw, cw, ch);
+                });
+            }
 
             var output = document.querySelector(".output");
             output.cols = board.cols;
@@ -66,7 +69,27 @@
     points: " + board.points + "\n\
 });\n\
 console.log(board.asString());\n";
+
+            clearBoard();
+
+            window.findPath = function(event) {
+                clearBoard();
+                var start = {y:Math.floor(event.offsetY / ch), x:Math.floor(event.offsetX / cw)};
+                mazegen.findPath(board, start, board.end, [0], onFoundPath);
+
+                function onFoundPath(path) {
+                    // if we have a path. Then populate it in the board with a different color.
+                    for (var i = 0; i < path.length; i += 1) {
+                        var pt = path[i];
+                        if (board[pt.y][pt.x] < 3) {
+                            ctx.fillStyle = path.complete ? '#090' : '#F0F';
+                            ctx.fillRect(pt.x * ch, pt.y * cw, cw, ch);
+                        }
+                    }
+                }
+            };
         }
+
     </script>
 </head>
 <body>
@@ -85,7 +108,7 @@ console.log(board.asString());\n";
     </span>
     <a href="javascript:gen()">Generate</a>
 </div>
-<canvas class="maze"></canvas>
+<canvas class="maze" onclick="findPath(event)"></canvas>
 <textarea class="example" rows="10" cols="40"></textarea>
 <textarea class="output"></textarea>
 </body>
