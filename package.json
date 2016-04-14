@@ -22,6 +22,6 @@
   "homepage": "https://github.com/wesjones/maze-generator#readme",
   "devDependencies": {
     "grunt": "^0.4.5",
-    "hbjs": "^0.16.19"
+    "hbjs": "^0.17.5"
   }
 }
