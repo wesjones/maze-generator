@@ -1,5 +1,5 @@
 /*!
-* maze-generator v.0.1.0
+* maze-generator v.0.1.2
 * (c) 2016, Obogo
 * License: MIT.
 */
@@ -138,6 +138,7 @@
                 board.points = o.points || 1;
                 board.pointRange = o.pointRange || .1;
                 board.available = [];
+                board.types = types;
                 each(createCell, board);
                 board.start = getClosestAvailableSpot(board, o && o.start || getEdgePoint(board));
                 board.end = getClosestAvailableSpot(board, o && o.end || getEdgePoint(board, board.start));

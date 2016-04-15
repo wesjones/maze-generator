@@ -76,6 +76,7 @@ define('mazegen', function () {
             board.points = o.points || 1;
             board.pointRange = o.pointRange || 0.1;
             board.available = [];
+            board.types = types;
             each(createCell, board);
             // if the end or the start is not at an available spot. Move them to the closes one.
             board.start = getClosestAvailableSpot(board, o && o.start || getEdgePoint(board));

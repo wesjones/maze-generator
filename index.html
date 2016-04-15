@@ -50,7 +50,7 @@
                 }
             }
 
-            function clearBoard() {
+            function render() {
                 board.each(function (r, c) {
                     var value = this[r][c];
                     ctx.fillStyle = getColor(value);
@@ -70,10 +70,10 @@
 });\n\
 console.log(board.asString());\n";
 
-            clearBoard();
+            render();
 
             window.findPath = function(event) {
-                clearBoard();
+                render();
                 var start = {y:Math.floor(event.offsetY / ch), x:Math.floor(event.offsetX / cw)};
                 mazegen.findPath(board, start, board.end, [0], onFoundPath);
 
