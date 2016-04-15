@@ -1,4 +1,4 @@
-define('mazegen', ['findPath'], function () {
+define('mazegen', ['findPath'], function (findPath) {
     function MazeGen() {
         var types = {
             WALL: 0,

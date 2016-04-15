@@ -1,5 +1,5 @@
 /*!
-* maze-generator v.0.1.3
+* maze-generator v.0.1.4
 * (c) 2016, Obogo
 * License: MIT.
 */
@@ -68,7 +68,7 @@
     })();
     //! ################# YOUR CODE STARTS HERE #################### //
     //! src/mazegen.js
-    define("mazegen", [ "findPath" ], function() {
+    define("mazegen", [ "findPath" ], function(findPath) {
         function MazeGen() {
             var types = {
                 WALL: 0,
