@@ -100,4 +100,6 @@ define('findPath', function() {
     }
 
     exports.findPath = findPath;
+
+    return findPath;
 });

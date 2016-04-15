@@ -1,4 +1,4 @@
-define('mazegen', function () {
+define('mazegen', ['findPath'], function () {
     function MazeGen() {
         var types = {
             WALL: 0,
@@ -78,6 +78,9 @@ define('mazegen', function () {
             board.available = [];
             board.types = types;
             each(createCell, board);
+            board.findPath = function(start, target, blockers, callback) {
+                findPath(board, start, target, blockers, callback);
+            };
             // if the end or the start is not at an available spot. Move them to the closes one.
             board.start = getClosestAvailableSpot(board, o && o.start || getEdgePoint(board));
             board.end = getClosestAvailableSpot(board, o && o.end || getEdgePoint(board, board.start));

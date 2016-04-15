@@ -1,5 +1,5 @@
 /*!
-* maze-generator v.0.1.2
+* maze-generator v.0.1.3
 * (c) 2016, Obogo
 * License: MIT.
 */
@@ -68,7 +68,7 @@
     })();
     //! ################# YOUR CODE STARTS HERE #################### //
     //! src/mazegen.js
-    define("mazegen", function() {
+    define("mazegen", [ "findPath" ], function() {
         function MazeGen() {
             var types = {
                 WALL: 0,
@@ -140,6 +140,9 @@
                 board.available = [];
                 board.types = types;
                 each(createCell, board);
+                board.findPath = function(start, target, blockers, callback) {
+                    findPath(board, start, target, blockers, callback);
+                };
                 board.start = getClosestAvailableSpot(board, o && o.start || getEdgePoint(board));
                 board.end = getClosestAvailableSpot(board, o && o.end || getEdgePoint(board, board.start));
                 generatePath(board);
@@ -382,6 +385,7 @@
             }, 1);
         }
         exports.findPath = findPath;
+        return findPath;
     });
     //! #################  YOUR CODE ENDS HERE  #################### //
     finalize();
