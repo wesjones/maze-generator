@@ -1,4 +1,4 @@
-define('mazegen', ['findPath'], function (findPath) {
+define('mazegen', ['findPath', 'angleToDirection', 'getAngle', 'getPointsFromEdge', 'getSidePoints'], function (findPath, angleToDirection, getAngle, getPointsFromEdge, getSidePoints) {
     function MazeGen() {
         var types = {
             WALL: 0,
@@ -31,41 +31,74 @@ define('mazegen', ['findPath'], function (findPath) {
             }
         }
 
-        function getClosestAvailableSpot(board, pt) {
-            var dist = board.available.length, d, a, spot;
-            for (var i = 0; i < board.available.length; i += 1) {
-                a = board.available[i];
-                d = getDistance(a.x, a.y, pt.x, pt.y);
-                if (d < dist) {
-                    dist = d;
-                    spot = a;
+
+        function getEdgePoint(board) {
+            return board.getPointsFromEdge(0, [board.types.PATH], 1)[0];
+        }
+        
+        function forcePath(start, end, blockers, callback, render) {
+            blockers = blockers || [types.WALL];
+            render = render || function() {};
+            var bd = this;
+            bd.starts = bd.starts || [];
+            if (!(start instanceof Array)) {
+                start = [start];
+            }
+
+            end = bd.getClosestAvailablePoint(end);
+
+            function complete() {
+                if (start.length) {
+                    var s = start.shift();
+                    bd.starts.push(s);
+                    bd[s.y][s.x] = types.START;
+                    bd[end.y][end.x] = types.END;
+                    bd.findPath(s, end, blockers, findAWay);
+                } else {
+                    callback();
                 }
             }
-            return spot;
+
+            function getClosestSide(current, target) {
+                var sides = getSidePoints(current);
+                var next;
+                for(var i = 0; i < sides.length; i += 1) {
+                    sides[i].dist = getDistance(sides[i].x, sides[i].y, target.x, target.y);
+                    if (!next || sides[i].dist < next.dist) {
+                        next = sides[i];
+                    }
+                }
+                return next;
+            }
+
+            function findAWay(path) {// we use the path finder to find a path.
+                var closest = path.closest;// during the path finder the closest spot it comes up to in distance to the end path then we store
+                if (closest.x === end.x && closest.y === end.y) {
+                    render();
+                    complete();
+                } else {// if it was not the end point. keep going.
+                    // we find the wall in the direction of the center.
+                    var pt = getClosestSide(closest, end);
+                    while(bd.getValue(pt.y, pt.x) === types.WALL) {
+                        bd[pt.y][pt.x] = types.PREFERRED;// clear all walls as we jump.
+                        pt = getClosestSide(pt, end);
+                    }
+                    bd[pt.y][pt.x] = types.PREFERRED;
+                    render();
+                    // we have jumped over that wall and keep track of the point we jumped over.
+                    bd.findPath(pt, end, blockers, findAWay);// we then path find again from that point to the end point.
+                }
+            }
+
+            complete();
         }
 
-        function getEdgePoint(board, avoidSide) {
-            var edgePoints = [], pt;
-            var maxY = board.rows - 1;
-            var maxX = board.cols - 1;
-            var range = Math.max(maxY, maxX) * 0.5;
-            for (var i = 0; i < board.available.length; i += 1) {
-                pt = board.available[i];
-                if (pt.x === 0 || pt.y === 0 || pt.x === maxX || pt.y === maxY) {
-                    if (avoidSide && getDistance(pt.x, pt.y, avoidSide.x, avoidSide.y) > range) {
-                        edgePoints.push(pt);
-                    } else if (!avoidSide) {
-                        edgePoints.push(pt);
-                    }
-
-                }
-            }
-            i = rand(edgePoints.length);
-            return edgePoints[i];
+        function getValue(r, c) {
+            return this[r] ? this[r][c] : undefined;
         }
 
         /**
-         * @param {{rows:int, cols:int, points:int, pointRange:float, start:{x:int, y:int}, end:{x:int, y:int}}} options
+         * @param {{rows:int, cols:int, starts:Array.<{x:int, y:int}>, end:{x:int, y:int}}} options
          * @returns {Array}
          */
         function generate(options) {
@@ -73,24 +106,28 @@ define('mazegen', ['findPath'], function (findPath) {
             var board = [];
             board.rows = o.rows || 10;
             board.cols = o.cols || 10;
-            board.points = o.points || 1;
-            board.pointRange = o.pointRange || 0.1;
             board.available = [];
             board.types = types;
             each(createCell, board);
             board.findPath = function(start, target, blockers, callback) {
                 findPath(board, start, target, blockers, callback);
             };
-            // if the end or the start is not at an available spot. Move them to the closes one.
-            board.start = getClosestAvailableSpot(board, o && o.start || getEdgePoint(board));
-            board.end = getClosestAvailableSpot(board, o && o.end || getEdgePoint(board, board.start));
 
-            generatePath(board);
-
+            generateBoard(board);
             board.each = each.bind(board);
             board.asString = function() {
                 return this.join("\n").split(",").join("");
             };
+            board.forcePath = forcePath.bind(board);
+            board.getValue = getValue.bind(board);
+            board.getPointsFromEdge = function(offset, types, limit) {
+                return getPointsFromEdge(board, offset, types || [types.PATH, types.PREFERRED], limit);
+            };
+            board.getClosestAvailablePoint = function(pt) {
+                return getClosestAvailablePoint(board, pt);
+            };
+            // if the end or the start is not at an available spot. Move them to the closes one.
+            board.end = board.getClosestAvailablePoint(o && o.end || getEdgePoint(board));
             return board;
         }
 
@@ -134,26 +171,7 @@ define('mazegen', ['findPath'], function (findPath) {
             }
         }
 
-        function generatePath(board) {
-            // first generate a random set of points that it must go through in getting to the end point
-            // from the available points.
-            var len = board.available.length;
-            var targetLen = board.points;// this increases the difficulty.
-            var points = [board.start];
-            while (points.length < targetLen) {
-                var p = board.available[rand(len)];
-                var last = points[points.length - 1];
-                var d = getDistance(p.x, p.y, last.x, last.y);
-                if (d > board.rows * 0.25) {
-                    points.push(p);
-                }
-            }
-            points.push(board.end);
-            console.log("path points", points.length);
-            setWall(board, board.start, types.START);
-            setWall(board, board.end, types.END);
-            makePath(board, points, types.PREFERRED);
-
+        function generateBoard(board) {
             while (board.available.length) {
                 var index = rand(board.available.length);
                 breakWall(board, board.available[index]);
@@ -161,49 +179,26 @@ define('mazegen', ['findPath'], function (findPath) {
             }
         }
 
-        function removeAvailablePoint(board, pt) {
-            var p;
-            for (var i = 0; i < board.available.length; i += 1) {
-                p = board.available[i];
-                if (p.y === pt.y && p.x === pt.x) {
-                    board.available.splice(i, 1);
-                    return;
+        function getClosestAvailablePoint(board, pt) {
+            var p = {y:Math.round(pt.y), x:Math.round(pt.x)}, result;
+            if (board.getValue(p.y, p.x)) {
+                return p;
+            }
+            var sides = getSidePoints(p);
+            for(var i = 0; i < sides.length; i += 1) {
+                if (board.getValue(sides[i].y, sides[i].x)) {
+                    return sides[i];
                 }
             }
-        }
-
-        function sortByDist(a, b) {
-            return a.dist - b.dist;
-        }
-
-        function makePath(board, points, value) {
-            var current = points.shift();
-            removeAvailablePoint(board, current);
-            var next = points.shift();
-            current.dist = getDistance(current.x, current.y, next.x, next.y);
-            while (next) {
-                if (current.y !== next.y || current.x !== next.x) {
-                    var sides = getSides(board, current);
-                    var preferred = [];
-                    var side;
-                    for (var i = 0; i < sides.length; i += 1) {
-                        sides[i].dist = getDistance(sides[i].tx, sides[i].ty, next.x, next.y);
-                        if (sides[i].dist <= current.dist && board[sides[i].y][sides[i].x] !== types.PREFERRED) {
-                            preferred.push(sides[i]);
-                        }
-                    }
-                    sides.sort(sortByDist);
-                    side = preferred.length ? preferred[rand(preferred.length)] : sides.shift();
-                    if (board[current.y][current.x] === types.PATH) {
-                        setWall(board, current, value || types.PATH);
-                    }
-                    setWall(board, side, value || types.PATH);
-                    current = {y: side.ty, x: side.tx, dist: side.dist};
-                    removeAvailablePoint(board, current);
-                } else {
-                    next = points.shift();
+            // if we didn't find one. Then we need to try the sides and keep branching out till we do.
+            for(i = 0; i < sides.length; i += 1) {
+                result = getClosestAvailablePoint(board, sides[i]);
+                if (result) {
+                    return result;
                 }
             }
+            return null;
+            // throw new Error("Unable to find close point");
         }
 
 

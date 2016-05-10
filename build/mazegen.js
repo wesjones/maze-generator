@@ -68,7 +68,7 @@
     })();
     //! ################# YOUR CODE STARTS HERE #################### //
     //! src/mazegen.js
-    define("mazegen", [ "findPath" ], function(findPath) {
+    define("mazegen", [ "findPath", "angleToDirection", "getAngle", "getPointsFromEdge", "getSidePoints" ], function(findPath, angleToDirection, getAngle, getPointsFromEdge, getSidePoints) {
         function MazeGen() {
             var types = {
                 WALL: 0,
@@ -100,56 +100,86 @@
                     });
                 }
             }
-            function getClosestAvailableSpot(board, pt) {
-                var dist = board.available.length, d, a, spot;
-                for (var i = 0; i < board.available.length; i += 1) {
-                    a = board.available[i];
-                    d = getDistance(a.x, a.y, pt.x, pt.y);
-                    if (d < dist) {
-                        dist = d;
-                        spot = a;
+            function getEdgePoint(board) {
+                return board.getPointsFromEdge(0, [ board.types.PATH ], 1)[0];
+            }
+            function forcePath(start, end, blockers, callback, render) {
+                blockers = blockers || [ types.WALL ];
+                render = render || function() {};
+                var bd = this;
+                bd.starts = bd.starts || [];
+                if (!(start instanceof Array)) {
+                    start = [ start ];
+                }
+                end = bd.getClosestAvailablePoint(end);
+                function complete() {
+                    if (start.length) {
+                        var s = start.shift();
+                        bd.starts.push(s);
+                        bd[s.y][s.x] = types.START;
+                        bd[end.y][end.x] = types.END;
+                        bd.findPath(s, end, blockers, findAWay);
+                    } else {
+                        callback();
                     }
                 }
-                return spot;
-            }
-            function getEdgePoint(board, avoidSide) {
-                var edgePoints = [], pt;
-                var maxY = board.rows - 1;
-                var maxX = board.cols - 1;
-                var range = Math.max(maxY, maxX) * .5;
-                for (var i = 0; i < board.available.length; i += 1) {
-                    pt = board.available[i];
-                    if (pt.x === 0 || pt.y === 0 || pt.x === maxX || pt.y === maxY) {
-                        if (avoidSide && getDistance(pt.x, pt.y, avoidSide.x, avoidSide.y) > range) {
-                            edgePoints.push(pt);
-                        } else if (!avoidSide) {
-                            edgePoints.push(pt);
+                function getClosestSide(current, target) {
+                    var sides = getSidePoints(current);
+                    var next;
+                    for (var i = 0; i < sides.length; i += 1) {
+                        sides[i].dist = getDistance(sides[i].x, sides[i].y, target.x, target.y);
+                        if (!next || sides[i].dist < next.dist) {
+                            next = sides[i];
                         }
                     }
+                    return next;
                 }
-                i = rand(edgePoints.length);
-                return edgePoints[i];
+                function findAWay(path) {
+                    var closest = path.closest;
+                    if (closest.x === end.x && closest.y === end.y) {
+                        render();
+                        complete();
+                    } else {
+                        var pt = getClosestSide(closest, end);
+                        while (bd.getValue(pt.y, pt.x) === types.WALL) {
+                            bd[pt.y][pt.x] = types.PREFERRED;
+                            pt = getClosestSide(pt, end);
+                        }
+                        bd[pt.y][pt.x] = types.PREFERRED;
+                        render();
+                        bd.findPath(pt, end, blockers, findAWay);
+                    }
+                }
+                complete();
+            }
+            function getValue(r, c) {
+                return this[r] ? this[r][c] : undefined;
             }
             function generate(options) {
                 var o = options || {};
                 var board = [];
                 board.rows = o.rows || 10;
                 board.cols = o.cols || 10;
-                board.points = o.points || 1;
-                board.pointRange = o.pointRange || .1;
                 board.available = [];
                 board.types = types;
                 each(createCell, board);
                 board.findPath = function(start, target, blockers, callback) {
                     findPath(board, start, target, blockers, callback);
                 };
-                board.start = getClosestAvailableSpot(board, o && o.start || getEdgePoint(board));
-                board.end = getClosestAvailableSpot(board, o && o.end || getEdgePoint(board, board.start));
-                generatePath(board);
+                generateBoard(board);
                 board.each = each.bind(board);
                 board.asString = function() {
                     return this.join("\n").split(",").join("");
                 };
+                board.forcePath = forcePath.bind(board);
+                board.getValue = getValue.bind(board);
+                board.getPointsFromEdge = function(offset, types, limit) {
+                    return getPointsFromEdge(board, offset, types || [ types.PATH, types.PREFERRED ], limit);
+                };
+                board.getClosestAvailablePoint = function(pt) {
+                    return getClosestAvailablePoint(board, pt);
+                };
+                board.end = board.getClosestAvailablePoint(o && o.end || getEdgePoint(board));
                 return board;
             }
             function hasWall(board, y, x) {
@@ -207,74 +237,34 @@
                     sides.splice(index, 1);
                 }
             }
-            function generatePath(board) {
-                var len = board.available.length;
-                var targetLen = board.points;
-                var points = [ board.start ];
-                while (points.length < targetLen) {
-                    var p = board.available[rand(len)];
-                    var last = points[points.length - 1];
-                    var d = getDistance(p.x, p.y, last.x, last.y);
-                    if (d > board.rows * .25) {
-                        points.push(p);
-                    }
-                }
-                points.push(board.end);
-                console.log("path points", points.length);
-                setWall(board, board.start, types.START);
-                setWall(board, board.end, types.END);
-                makePath(board, points, types.PREFERRED);
+            function generateBoard(board) {
                 while (board.available.length) {
                     var index = rand(board.available.length);
                     breakWall(board, board.available[index]);
                     board.available.splice(index, 1);
                 }
             }
-            function removeAvailablePoint(board, pt) {
-                var p;
-                for (var i = 0; i < board.available.length; i += 1) {
-                    p = board.available[i];
-                    if (p.y === pt.y && p.x === pt.x) {
-                        board.available.splice(i, 1);
-                        return;
+            function getClosestAvailablePoint(board, pt) {
+                var p = {
+                    y: Math.round(pt.y),
+                    x: Math.round(pt.x)
+                }, result;
+                if (board.getValue(p.y, p.x)) {
+                    return p;
+                }
+                var sides = getSidePoints(p);
+                for (var i = 0; i < sides.length; i += 1) {
+                    if (board.getValue(sides[i].y, sides[i].x)) {
+                        return sides[i];
                     }
                 }
-            }
-            function sortByDist(a, b) {
-                return a.dist - b.dist;
-            }
-            function makePath(board, points, value) {
-                var current = points.shift();
-                removeAvailablePoint(board, current);
-                var next = points.shift();
-                current.dist = getDistance(current.x, current.y, next.x, next.y);
-                while (next) {
-                    if (current.y !== next.y || current.x !== next.x) {
-                        var sides = getSides(board, current);
-                        var preferred = [];
-                        var side;
-                        for (var i = 0; i < sides.length; i += 1) {
-                            sides[i].dist = getDistance(sides[i].tx, sides[i].ty, next.x, next.y);
-                            if (sides[i].dist <= current.dist && board[sides[i].y][sides[i].x] !== types.PREFERRED) {
-                                preferred.push(sides[i]);
-                            }
-                        }
-                        sides.sort(sortByDist);
-                        side = preferred.length ? preferred[rand(preferred.length)] : sides.shift();
-                        if (board[current.y][current.x] === types.PATH) {
-                            setWall(board, current, value || types.PATH);
-                        }
-                        setWall(board, side, value || types.PATH);
-                        current = {
-                            y: side.ty,
-                            x: side.tx,
-                            dist: side.dist
-                        };
-                        removeAvailablePoint(board, current);
-                    } else {
-                        next = points.shift();
+                for (i = 0; i < sides.length; i += 1) {
+                    result = getClosestAvailablePoint(board, sides[i]);
+                    if (result) {
+                        return result;
                     }
                 }
+                return null;
             }
             exports.generate = generate;
             exports.types = types;
@@ -282,10 +272,11 @@
         return new MazeGen();
     });
     //! src/findpath.js
-    define("findPath", function() {
+    define("findPath", [ "getDistance", "getSidePoints" ], function(getDistance, getSidePoints) {
         function findPath(board, start, target, blockers, callback) {
             var paths = [ [ start ] ];
             var used = createUsed();
+            var closest;
             if (!available(start) || !available(target)) {
                 return;
             }
@@ -307,27 +298,11 @@
                 return used[pt.y] && used[pt.y][pt.x] || value === undefined || blockers.indexOf(value) !== -1 ? false : true;
             }
             function getAvailableSides(pt) {
-                var sides = [];
-                var up = {
-                    y: pt.y - 1,
-                    x: pt.x
-                };
-                var right = {
-                    y: pt.y,
-                    x: pt.x + 1
-                };
-                var down = {
-                    y: pt.y + 1,
-                    x: pt.x
-                };
-                var left = {
-                    y: pt.y,
-                    x: pt.x - 1
-                };
-                available(up) && sides.push(up);
-                available(right) && sides.push(right);
-                available(down) && sides.push(down);
-                available(left) && sides.push(left);
+                var sides = [], points = getSidePoints(pt);
+                available(points.up) && sides.push(points.up);
+                available(points.right) && sides.push(points.right);
+                available(points.down) && sides.push(points.down);
+                available(points.left) && sides.push(points.left);
                 return sides;
             }
             function addUsed(pt) {
@@ -355,6 +330,7 @@
                     if (sides.length === 1) {
                         path.complete = complete;
                         path.push(sides[i]);
+                        getClosestPoint(path);
                         paths.push(path);
                         if (found) {
                             return path;
@@ -363,6 +339,7 @@
                         p = path.slice(0);
                         p.complete = complete;
                         p.push(sides[i]);
+                        getClosestPoint(p);
                         paths.push(p);
                         if (found) {
                             return p;
@@ -372,20 +349,155 @@
                 }
                 return found;
             }
+            function getClosestPoint(points) {
+                var closestPt = {
+                    dist: getDistance(points[0].x, points[0].y, target.x, target.y),
+                    pt: points[0]
+                };
+                for (var i = 1; i < points.length; i += 1) {
+                    var dist = getDistance(points[i].x, points[i].y, target.x, target.y);
+                    if (dist < closestPt.dist) {
+                        closestPt.dist = dist;
+                        closestPt.pt = points[i];
+                    }
+                }
+                points.closest = closestPt.pt;
+                points.dist = closestPt.dist;
+                if (!closest || points.dist < closest.dist) {
+                    closest = points;
+                }
+                return points;
+            }
             var intv = setInterval(function() {
                 var now = Date.now();
                 while (Date.now() === now) {
-                    var lastPath = paths[0];
                     var answer = next();
                     if (answer || !paths.length) {
                         clearInterval(intv);
-                        callback(answer || lastPath);
+                        callback(closest);
                     }
                 }
             }, 1);
         }
         exports.findPath = findPath;
         return findPath;
+    });
+    //! node_modules/hbjs/src/utils/geom/getDistance.js
+    define("getDistance", function() {
+        return function getDistance(x1, y1, x2, y2) {
+            return Math.sqrt((x2 -= x1) * x2 + (y2 -= y1) * y2);
+        };
+    });
+    //! src/getSidePoints.js
+    define("getSidePoints", [ "getPointToDirOfPoint" ], function(getPointToDirOfPoint) {
+        return function getSidePoints(pt) {
+            var sides = [];
+            sides.push(sides.up = getPointToDirOfPoint(pt, "up"));
+            sides.push(sides.right = getPointToDirOfPoint(pt, "right"));
+            sides.push(sides.down = getPointToDirOfPoint(pt, "down"));
+            sides.push(sides.left = getPointToDirOfPoint(pt, "left"));
+            return sides;
+        };
+    });
+    //! src/getPointToDirOfPoint.js
+    define("getPointToDirOfPoint", function() {
+        var deltas = {
+            up: {
+                x: 0,
+                y: -1
+            },
+            right: {
+                x: 1,
+                y: 0
+            },
+            down: {
+                x: 0,
+                y: 1
+            },
+            left: {
+                x: -1,
+                y: 0
+            }
+        };
+        return function getPointToDirOfPoint(pt, dir) {
+            return {
+                x: pt.x + deltas[dir].x,
+                y: pt.y + deltas[dir].y
+            };
+        };
+    });
+    //! src/angleToDirection.js
+    define("angleToDirection", [ "radiansToDegrees" ], function(radiansToDegrees) {
+        var full = 360;
+        return function angleToSide(angle) {
+            var deg = Math.abs(radiansToDegrees(angle));
+            if (deg <= full * .125 || angle > full * .875) {
+                return "right";
+            }
+            if (deg <= full * .375) {
+                return "up";
+            }
+            if (deg <= full * .625) {
+                return "left";
+            }
+            if (deg <= full * .875) {
+                return "down";
+            }
+            throw new Error("Something went wrong");
+        };
+    });
+    //! node_modules/hbjs/src/utils/geom/radiansToDegrees.js
+    define("radiansToDegrees", function() {
+        return function radiansToDegrees(radians) {
+            return radians * (180 / Math.PI);
+        };
+    });
+    //! node_modules/hbjs/src/utils/geom/getAngle.js
+    define("getAngle", function() {
+        return function getAngle(x1, y1, x2, y2) {
+            return Math.atan2(y2 - y1, x2 - x1);
+        };
+    });
+    //! src/getPointsFromEdge.js
+    define("getPointsFromEdge", function() {
+        function getColsFromRow(points, board, row, offset, types) {
+            for (var c = offset; c < board[row].length - offset; c += 1) {
+                if (types.indexOf(board.getValue(row, c)) !== -1) {
+                    points.push({
+                        y: row,
+                        x: c
+                    });
+                }
+            }
+        }
+        function getRowsFromCol(points, board, col, offset, types) {
+            for (var r = offset; r < board.length - offset; r += 1) {
+                if (types.indexOf(board.getValue(r, col)) !== -1) {
+                    points.push({
+                        y: r,
+                        x: col
+                    });
+                }
+            }
+        }
+        return function getPointsOnEdge(board, offset, types, limit) {
+            offset = offset || 0;
+            var points = [], limited;
+            getColsFromRow(points, board, offset, offset, types);
+            getRowsFromCol(points, board, board[0].length - 1 - offset, offset, types);
+            getColsFromRow(points, board, board.length - 1 - offset, offset, types);
+            getRowsFromCol(points, board, offset, offset, types);
+            if (limit) {
+                limited = [];
+                while (points.length && limited.length < limit) {
+                    var index = Math.floor(Math.random() * points.length);
+                    limited.push(points[index]);
+                    points.splice(index, 1);
+                }
+                return limited;
+            }
+            return points;
+        };
     });
     //! #################  YOUR CODE ENDS HERE  #################### //
     finalize();

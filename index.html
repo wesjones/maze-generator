@@ -15,17 +15,26 @@
     <script src="build/mazegen.js"></script>
     <script>
 
-
         function gen() {
+            var rows = document.getElementById('rows').value,
+                cols = document.getElementById('cols').value,
+                starts = document.getElementById('starts').value;
             var board = mazegen.generate({
-                rows: document.getElementById('rows').value,
-                cols: document.getElementById('cols').value,
-                points: document.getElementById('points').value
+                rows: rows,
+                cols: cols
+            });
+            var availablePoints = board.getPointsFromEdge(2, [board.types.PATH], starts);
+            board.forcePath(availablePoints, board.getClosestAvailablePoint({
+                x: cols * 0.5,
+                y: rows * 0.5
+            }), [board.types.WALL], function() {
+                render();
+                console.log("READY");
             });
 
             var mz = document.querySelector(".maze");
-            var cw = 4;
-            var ch = 4;
+            var cw = 8;
+            var ch = 8;
             var w = board.cols * cw;
             var h = board.rows * ch;
             var ctx = mz.getContext("2d");
@@ -42,7 +51,7 @@
                     case mazegen.types.PATH:
                         return '#FF0';
                     case mazegen.types.PREFERRED:
-                        return '#FD0';
+                        return '#0F0';
                     case mazegen.types.START:
                         return '#F90';
                     case mazegen.types.END:
@@ -69,8 +78,6 @@
     points: " + board.points + "\n\
 });\n\
 console.log(board.asString());\n";
-
-            render();
 
             window.findPath = function(event) {
                 render();
@@ -103,8 +110,8 @@ console.log(board.asString());\n";
         <input type="number" id="cols" value="41">
     </span>
     <span>
-        <label for="points">Curve Points:</label>
-        <input type="number" id="points" value="3">
+        <label for="starts">Starts:</label>
+        <input type="number" id="starts" value="1">
     </span>
     <a href="javascript:gen()">Generate</a>
 </div>
