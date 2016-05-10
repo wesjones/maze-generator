@@ -1,5 +1,5 @@
 /*!
-* maze-generator v.0.1.4
+* maze-generator v.0.2.1
 * (c) 2016, Obogo
 * License: MIT.
 */
@@ -111,7 +111,7 @@
                 if (!(start instanceof Array)) {
                     start = [ start ];
                 }
-                end = bd.getClosestAvailablePoint(end);
+                bd.end = end = bd.getClosestAvailablePoint(end);
                 function complete() {
                     if (start.length) {
                         var s = start.shift();
@@ -142,10 +142,9 @@
                     } else {
                         var pt = getClosestSide(closest, end);
                         while (bd.getValue(pt.y, pt.x) === types.WALL) {
-                            bd[pt.y][pt.x] = types.PREFERRED;
+                            bd[pt.y][pt.x] = types.PATH;
                             pt = getClosestSide(pt, end);
                         }
-                        bd[pt.y][pt.x] = types.PREFERRED;
                         render();
                         bd.findPath(pt, end, blockers, findAWay);
                     }
@@ -158,8 +157,8 @@
             function generate(options) {
                 var o = options || {};
                 var board = [];
-                board.rows = o.rows || 10;
-                board.cols = o.cols || 10;
+                board.rows = parseInt(o.rows || 10, 10);
+                board.cols = parseInt(o.cols || 10, 10);
                 board.available = [];
                 board.types = types;
                 each(createCell, board);
@@ -243,6 +242,7 @@
                     breakWall(board, board.available[index]);
                     board.available.splice(index, 1);
                 }
+                delete board.available;
             }
             function getClosestAvailablePoint(board, pt) {
                 var p = {
@@ -374,7 +374,7 @@
                     var answer = next();
                     if (answer || !paths.length) {
                         clearInterval(intv);
-                        callback(closest);
+                        callback(answer || closest);
                     }
                 }
             }, 1);

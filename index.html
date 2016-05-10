@@ -15,7 +15,7 @@
     <script src="build/mazegen.js"></script>
     <script>
 
-        function gen() {
+        function generateBoard() {
             var rows = document.getElementById('rows').value,
                 cols = document.getElementById('cols').value,
                 starts = document.getElementById('starts').value;
@@ -23,15 +23,15 @@
                 rows: rows,
                 cols: cols
             });
-            var availablePoints = board.getPointsFromEdge(2, [board.types.PATH], starts);
-            board.forcePath(availablePoints, board.getClosestAvailablePoint({
-                x: cols * 0.5,
-                y: rows * 0.5
-            }), [board.types.WALL], function() {
-                render();
+            var availablePoints = board.getPointsFromEdge(0, [board.types.PATH], starts);
+            board.forcePath(availablePoints, {x: cols * 0.5, y: rows * 0.5}, [board.types.WALL], function() {
+                console.log(board.asString());
                 console.log("READY");
+                drawBoard(board);
             });
+        }
 
+        function drawBoard(board) {
             var mz = document.querySelector(".maze");
             var cw = 8;
             var ch = 8;
@@ -67,6 +67,8 @@
                 });
             }
 
+            render();
+
             var output = document.querySelector(".output");
             output.cols = board.cols;
             output.style.width = board.cols * 10 + 'px';
@@ -75,9 +77,14 @@
             document.querySelector(".example").value = "var board = mazegen.generate({\n\
     rows: " + board.rows + ",\n\
     cols: " + board.cols + ",\n\
-    points: " + board.points + "\n\
 });\n\
-console.log(board.asString());\n";
+var availablePoints = board.getPointsFromEdge(0, [board.types.PATH], " + starts + ");\n\
+board.forcePath(availablePoints, board.getClosestAvailablePoint({\n\
+    x: cols * 0.5,\n\
+    y: rows * 0.5\n\
+}), [board.types.WALL], function() {\n\
+    console.log(board.asString());\n\
+});\n";
 
             window.findPath = function(event) {
                 render();
@@ -113,7 +120,7 @@ console.log(board.asString());\n";
         <label for="starts">Starts:</label>
         <input type="number" id="starts" value="1">
     </span>
-    <a href="javascript:gen()">Generate</a>
+    <a href="javascript:generateBoard()">Generate</a>
 </div>
 <canvas class="maze" onclick="findPath(event)"></canvas>
 <textarea class="example" rows="10" cols="40"></textarea>

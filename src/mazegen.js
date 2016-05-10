@@ -45,7 +45,7 @@ define('mazegen', ['findPath', 'angleToDirection', 'getAngle', 'getPointsFromEdg
                 start = [start];
             }
 
-            end = bd.getClosestAvailablePoint(end);
+            bd.end = end = bd.getClosestAvailablePoint(end);
 
             function complete() {
                 if (start.length) {
@@ -80,10 +80,9 @@ define('mazegen', ['findPath', 'angleToDirection', 'getAngle', 'getPointsFromEdg
                     // we find the wall in the direction of the center.
                     var pt = getClosestSide(closest, end);
                     while(bd.getValue(pt.y, pt.x) === types.WALL) {
-                        bd[pt.y][pt.x] = types.PREFERRED;// clear all walls as we jump.
+                        bd[pt.y][pt.x] = types.PATH;// clear all walls as we jump.
                         pt = getClosestSide(pt, end);
                     }
-                    bd[pt.y][pt.x] = types.PREFERRED;
                     render();
                     // we have jumped over that wall and keep track of the point we jumped over.
                     bd.findPath(pt, end, blockers, findAWay);// we then path find again from that point to the end point.
@@ -104,8 +103,8 @@ define('mazegen', ['findPath', 'angleToDirection', 'getAngle', 'getPointsFromEdg
         function generate(options) {
             var o = options || {};
             var board = [];
-            board.rows = o.rows || 10;
-            board.cols = o.cols || 10;
+            board.rows = parseInt(o.rows || 10, 10);
+            board.cols = parseInt(o.cols || 10, 10);
             board.available = [];
             board.types = types;
             each(createCell, board);
@@ -177,6 +176,7 @@ define('mazegen', ['findPath', 'angleToDirection', 'getAngle', 'getPointsFromEdg
                 breakWall(board, board.available[index]);
                 board.available.splice(index, 1);
             }
+            delete board.available;
         }
 
         function getClosestAvailablePoint(board, pt) {

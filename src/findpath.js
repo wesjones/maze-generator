@@ -133,7 +133,7 @@ define('findPath', ['getDistance', 'getSidePoints'], function(getDistance, getSi
                 if (answer || !paths.length) {
                     clearInterval(intv);
                     // we need to find the closest point to the target end and assign it on the array.
-                    callback(closest);
+                    callback(answer || closest);
                 }
             }
         }, 1);
