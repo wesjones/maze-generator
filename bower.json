@@ -1,7 +1,7 @@
 {
   "name": "maze-generator",
   "main": "build/mazegen.js",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "repository": {
     "type": "git",
     "url": "git://github.com/wesjones/maze-generator"
